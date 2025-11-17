@@ -263,8 +263,17 @@ def extract_items_cocacola(file_bytes: bytes, filename: str) -> List[Dict]:
             )
             result = poller.result()
 
-            # Extraer texto completo
-            full_text = "\n".join([page.content for page in result.pages])
+            # Extraer texto completo del documento
+            full_text = result.content if hasattr(result, 'content') else ""
+
+            # Si no hay content, extraer de las líneas de cada página
+            if not full_text:
+                full_text = "\n".join([
+                    line.content
+                    for page in result.pages
+                    for line in page.lines
+                ])
+
             prompt_with_text = f"{prompt}\n\nTEXTO EXTRAÍDO:\n{full_text}"
 
             # Llamar a Gemini solo con texto
