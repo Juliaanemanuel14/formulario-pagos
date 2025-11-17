@@ -229,7 +229,7 @@ def extract_items_cocacola(file_bytes: bytes, filename: str) -> Dict:
         filename: Nombre del archivo
 
     Returns:
-        Dict con {"items": lista de ítems, "invoice_total": total de factura}
+        Dict con {"items": lista de ítems, "invoice_total": total de factura, "invoice_number": número de factura}
     """
     try:
         # Cargar plugin de Coca-Cola
@@ -297,9 +297,11 @@ def extract_items_cocacola(file_bytes: bytes, filename: str) -> Dict:
         if isinstance(result, dict) and "items" in result:
             items = result["items"]
             invoice_total = result.get("invoice_total", None)
+            invoice_number = result.get("invoice_number", None)
         elif isinstance(result, list):
             items = result
             invoice_total = None
+            invoice_number = None
         else:
             raise ValueError("La respuesta no tiene el formato esperado")
 
@@ -308,8 +310,12 @@ def extract_items_cocacola(file_bytes: bytes, filename: str) -> Dict:
 
         logger.info(f"Extracción exitosa: {len(items)} productos detectados")
 
-        # Retornar items y el total de la factura
-        return {"items": items, "invoice_total": invoice_total}
+        # Retornar items, total y número de factura
+        return {
+            "items": items,
+            "invoice_total": invoice_total,
+            "invoice_number": invoice_number
+        }
 
     except json.JSONDecodeError as je:
         logger.error(f"Error parseando JSON: {je}")
@@ -678,14 +684,15 @@ def render_cocacola_tab():
                     with st.spinner(f"🔍 Analizando {uploaded_file.name}..."):
                         result = extract_items_cocacola(file_bytes, uploaded_file.name)
 
-                    # Extraer items y total de factura
+                    # Extraer items, total y número de factura
                     items = result.get("items", [])
                     invoice_total = result.get("invoice_total", None)
+                    invoice_number = result.get("invoice_number", uploaded_file.name)  # Fallback al nombre de archivo
 
                     if items:
                         # Agregar número de factura a cada item
                         for item in items:
-                            item['Nro_Factura'] = uploaded_file.name
+                            item['Nro_Factura'] = invoice_number
 
                         all_items.extend(items)
 
@@ -693,7 +700,7 @@ def render_cocacola_tab():
                         if 'total_final' in items[0]:
                             calculated_total = sum(item.get('total_final', 0) for item in items)
                             all_validations.append({
-                                'Factura': uploaded_file.name,
+                                'Factura': invoice_number,  # Usar número de factura real
                                 'Total_Papel': invoice_total,
                                 'Total_Calculado': calculated_total,
                                 'Diferencia': calculated_total - invoice_total if invoice_total else None

@@ -13,6 +13,7 @@ Proveedor: COCA-COLA FEMSA de Buenos Aires S.A.
 Objetivo: Extraer y procesar la información de la factura/remito con cálculos de costeo precisos.
 Devolver un JSON con la siguiente estructura:
 {
+  "invoice_number": "<número de factura en la esquina superior derecha, ej: 0607-00375731>",
   "invoice_total": <número entero del IMP.TOTAL o TOTAL de la factura>,
   "items": [<lista de objetos con los campos de cada producto>]
 }
@@ -30,6 +31,11 @@ REGLAS FUNDAMENTALES:
 ESTRUCTURA DE LA FACTURA COCA-COLA FEMSA:
 Tabla de productos con columnas:
 | CANTIDAD | CODIGO | PRODUCTO | P.UNITARIO | PRECIO NETO | DESCUENTO | SUBTOTAL | IVA 21% | I.INTERNOS | SUB+TOTAL |
+
+ENCABEZADO DE FACTURA:
+- invoice_number: Buscar en la esquina SUPERIOR DERECHA el texto "NUMERO:" seguido del número de factura.
+  Formato típico: "NUMERO: 0607-00375731" → extraer "0607-00375731" (como string, con guiones)
+  Si no se encuentra, buscar cualquier patrón similar a "XXXX-XXXXXXXX" en el encabezado.
 
 PIE DE FACTURA (buscar fila "IB.DN"):
 - IB_CAP_FED_TOTAL: Primer valor numérico en la zona de IB.DN (buscar texto "IB.CAP.FED")
@@ -81,7 +87,7 @@ CASOS ESPECIALES:
 - Mantener orden exacto de aparición
 
 SALIDA:
-JSON con "invoice_total" y "items".
+JSON con "invoice_number", "invoice_total" y "items".
 
 CRÍTICO - invoice_total:
 - Buscar el texto "IMP.TOTAL" o "IMPORTE TOTAL" en el pie de la factura
@@ -92,6 +98,7 @@ CRÍTICO - invoice_total:
 
 Ejemplo de estructura (con valores reales basados en la imagen):
 {
+  "invoice_number": "0607-00375731",
   "invoice_total": 8708199,
   "items": [
     {
