@@ -3,7 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const sqlite3 = require('sqlite3').verbose();
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const cors = require('cors');
 const path = require('path');
 const bcrypt = require('bcrypt');
@@ -166,22 +166,8 @@ async function initializeDatabase() {
   });
 }
 
-// Configuración de nodemailer con timeout y puerto alternativo
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT) || 465,
-  secure: process.env.EMAIL_PORT === '465' || process.env.EMAIL_SECURE === 'true',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  },
-  tls: {
-    rejectUnauthorized: false
-  },
-  connectionTimeout: 10000, // 10 segundos
-  greetingTimeout: 10000,
-  socketTimeout: 10000
-});
+// Configuración de Resend para envío de emails
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Middleware de autenticación
 const requireAuth = (req, res, next) => {
@@ -506,25 +492,32 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
         `
       };
 
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          console.error('Error al enviar el email:', error);
-          return res.status(200).json({
-            success: true,
-            message: 'Gasto registrado correctamente, pero hubo un error al enviar el email',
-            pagoId: pagoIds[0],
-            pagoIds: pagoIds,
-            emailSent: false
-          });
-        }
-
-        console.log('Email enviado:', info.messageId);
+      // Enviar email con Resend
+      resend.emails.send({
+        from: 'Registro de Pagos <onboarding@resend.dev>',
+        to: [mailOptions.to],
+        cc: mailOptions.cc ? [mailOptions.cc] : undefined,
+        subject: mailOptions.subject,
+        html: mailOptions.html
+      })
+      .then((data) => {
+        console.log('Email enviado exitosamente:', data.id);
         res.status(201).json({
           success: true,
           message: 'Gasto registrado y email enviado correctamente',
           pagoId: pagoIds[0],
           pagoIds: pagoIds,
           emailSent: true
+        });
+      })
+      .catch((error) => {
+        console.error('Error al enviar el email:', error);
+        res.status(200).json({
+          success: true,
+          message: 'Gasto registrado correctamente, pero hubo un error al enviar el email',
+          pagoId: pagoIds[0],
+          pagoIds: pagoIds,
+          emailSent: false
         });
       });
     }
