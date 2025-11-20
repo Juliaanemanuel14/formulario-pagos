@@ -61,8 +61,80 @@ const db = new sqlite3.Database(dbPath, (err) => {
     console.error('Error al conectar con la base de datos:', err.message);
   } else {
     console.log('Conectado a la base de datos SQLite.');
+    initializeDatabase();
   }
 });
+
+// Función para inicializar la base de datos automáticamente
+async function initializeDatabase() {
+  // Crear tabla de usuarios si no existe
+  const createUsersTableSQL = `
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      email TEXT,
+      rol TEXT DEFAULT 'usuario',
+      activo INTEGER DEFAULT 1,
+      fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+      ultimo_acceso DATETIME
+    )
+  `;
+
+  db.run(createUsersTableSQL, async (err) => {
+    if (err) {
+      console.error('Error al crear tabla usuarios:', err.message);
+      return;
+    }
+
+    // Verificar si ya existen usuarios
+    db.get('SELECT COUNT(*) as count FROM usuarios', async (err, row) => {
+      if (err) {
+        console.error('Error al verificar usuarios:', err.message);
+        return;
+      }
+
+      // Si no hay usuarios, crear los usuarios iniciales
+      if (row.count === 0) {
+        console.log('📝 Inicializando usuarios por primera vez...');
+
+        const usuariosIniciales = [
+          { username: 'Lucas Ortiz', password: '7894', email: 'lucas@example.com', rol: 'usuario' },
+          { username: 'Julian Salvatierra', password: '4226', email: 'julian@example.com', rol: 'admin' },
+          { username: 'Matias Huss', password: '1994', email: 'matias@example.com', rol: 'usuario' },
+          { username: 'Lucia Molina', password: '6462', email: 'lucia@example.com', rol: 'usuario' }
+        ];
+
+        const saltRounds = 10;
+
+        for (const user of usuariosIniciales) {
+          try {
+            const passwordHash = await bcrypt.hash(user.password, saltRounds);
+
+            await new Promise((resolve, reject) => {
+              db.run(
+                'INSERT INTO usuarios (username, password_hash, email, rol) VALUES (?, ?, ?, ?)',
+                [user.username, passwordHash, user.email, user.rol],
+                function(err) {
+                  if (err) reject(err);
+                  else resolve(this);
+                }
+              );
+            });
+
+            console.log(`✓ Usuario "${user.username}" creado`);
+          } catch (error) {
+            console.error(`❌ Error al crear "${user.username}":`, error.message);
+          }
+        }
+
+        console.log('✅ Base de datos inicializada correctamente\n');
+      } else {
+        console.log(`✓ Base de datos lista (${row.count} usuarios registrados)\n`);
+      }
+    });
+  });
+}
 
 // Configuración de nodemailer
 const transporter = nodemailer.createTransport({
