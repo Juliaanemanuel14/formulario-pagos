@@ -166,15 +166,21 @@ async function initializeDatabase() {
   });
 }
 
-// Configuración de nodemailer
+// Configuración de nodemailer con timeout y puerto alternativo
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: process.env.EMAIL_SECURE === 'true',
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.EMAIL_PORT) || 465,
+  secure: process.env.EMAIL_PORT === '465' || process.env.EMAIL_SECURE === 'true',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD
-  }
+  },
+  tls: {
+    rejectUnauthorized: false
+  },
+  connectionTimeout: 10000, // 10 segundos
+  greetingTimeout: 10000,
+  socketTimeout: 10000
 });
 
 // Middleware de autenticación
