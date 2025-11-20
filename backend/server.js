@@ -500,8 +500,9 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
         subject: mailOptions.subject,
         html: mailOptions.html
       })
-      .then((data) => {
-        console.log('Email enviado exitosamente:', data.id);
+      .then((result) => {
+        console.log('Email enviado exitosamente. Response:', JSON.stringify(result));
+        console.log('Enviado a:', mailOptions.to, 'con copia a:', mailOptions.cc);
         res.status(201).json({
           success: true,
           message: 'Gasto registrado y email enviado correctamente',
@@ -511,7 +512,8 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
         });
       })
       .catch((error) => {
-        console.error('Error al enviar el email:', error);
+        console.error('Error al enviar el email con Resend:', error);
+        console.error('Error completo:', JSON.stringify(error, null, 2));
         res.status(200).json({
           success: true,
           message: 'Gasto registrado correctamente, pero hubo un error al enviar el email',
