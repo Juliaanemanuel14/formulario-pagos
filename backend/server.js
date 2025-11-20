@@ -15,6 +15,9 @@ const PORT = process.env.PORT || 3000;
 // NOTA: Los usuarios ahora se almacenan en la tabla 'usuarios' de la BD
 // con contraseñas hasheadas usando bcrypt para mayor seguridad
 
+// Trust proxy - necesario para Railway
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors({
   origin: true,
@@ -35,7 +38,8 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production', // true en producción con HTTPS
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 horas
+    maxAge: 24 * 60 * 60 * 1000, // 24 horas
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
