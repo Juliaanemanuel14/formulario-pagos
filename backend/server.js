@@ -71,6 +71,32 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // Función para inicializar la base de datos automáticamente
 async function initializeDatabase() {
+  // Crear tabla de pagos si no existe
+  const createPagosTableSQL = `
+    CREATE TABLE IF NOT EXISTS pagos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      local TEXT NOT NULL,
+      proveedor TEXT NOT NULL,
+      fecha_pago DATE NOT NULL,
+      fecha_servicio DATE NOT NULL,
+      moneda TEXT NOT NULL,
+      concepto TEXT,
+      importe REAL,
+      observacion TEXT,
+      op TEXT,
+      usuario_registro TEXT NOT NULL,
+      fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  db.run(createPagosTableSQL, (err) => {
+    if (err) {
+      console.error('Error al crear tabla pagos:', err.message);
+    } else {
+      console.log('✓ Tabla "pagos" lista');
+    }
+  });
+
   // Crear tabla de usuarios si no existe
   const createUsersTableSQL = `
     CREATE TABLE IF NOT EXISTS usuarios (
