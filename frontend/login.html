@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Sistema de Gastos</title>
+  <link rel="stylesheet" href="login-styles.css">
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-box">
+      <div class="login-header">
+        <div class="logo">
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="32" cy="32" r="30" fill="#4f46e5" opacity="0.1"/>
+            <path d="M32 16C23.163 16 16 23.163 16 32C16 40.837 23.163 48 32 48C40.837 48 48 40.837 48 32C48 23.163 40.837 16 32 16ZM32 28C34.209 28 36 29.791 36 32C36 34.209 34.209 36 32 36C29.791 36 28 34.209 28 32C28 29.791 29.791 28 32 28Z" fill="#4f46e5"/>
+          </svg>
+        </div>
+        <h1>Bienvenido</h1>
+        <p>Ingrese sus credenciales para acceder al sistema</p>
+      </div>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="username">Usuario</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 10C12.21 10 14 8.21 14 6C14 3.79 12.21 2 10 2C7.79 2 6 3.79 6 6C6 8.21 7.79 10 10 10ZM10 12C7.33 12 2 13.34 2 16V18H18V16C18 13.34 12.67 12 10 12Z" fill="#6b7280"/>
+            </svg>
+            <select id="username" name="username" required>
+              <option value="">Seleccione un usuario</option>
+              <option value="Lucas Ortiz">Lucas Ortiz</option>
+              <option value="Julian Salvatierra">Julian Salvatierra</option>
+              <option value="Matias Huss">Matias Huss</option>
+              <option value="Lucia Molina">Lucia Molina</option>
+            </select>
+          </div>
+          <span class="error-message" id="error-username"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Contraseña</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M15 7H14V5C14 2.79 12.21 1 10 1C7.79 1 6 2.79 6 5V7H5C3.9 7 3 7.9 3 9V17C3 18.1 3.9 19 5 19H15C16.1 19 17 18.1 17 17V9C17 7.9 16.1 7 15 7ZM10 14C8.9 14 8 13.1 8 12C8 10.9 8.9 10 10 10C11.1 10 12 10.9 12 12C12 13.1 11.1 14 10 14ZM11.1 7H8.9V5C8.9 3.29 10.29 1.9 12 1.9C13.71 1.9 15.1 3.29 15.1 5V7H11.1Z" fill="#6b7280"/>
+            </svg>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="Ingrese su contraseña"
+              required
+            >
+            <button type="button" class="toggle-password" id="togglePassword">
+              <svg class="eye-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10 4C5 4 1.73 7.11 1 10C1.73 12.89 5 16 10 16C15 16 18.27 12.89 19 10C18.27 7.11 15 4 10 4ZM10 14C7.79 14 6 12.21 6 10C6 7.79 7.79 6 10 6C12.21 6 14 7.79 14 10C14 12.21 12.21 14 10 14ZM10 8C8.9 8 8 8.9 8 10C8 11.1 8.9 12 10 12C11.1 12 12 11.1 12 10C12 8.9 11.1 8 10 8Z" fill="#6b7280"/>
+              </svg>
+            </button>
+          </div>
+          <span class="error-message" id="error-password"></span>
+        </div>
+
+        <button type="submit" class="btn-login" id="loginBtn">
+          <span class="btn-text">Iniciar Sesión</span>
+          <span class="btn-loader" style="display: none;"></span>
+        </button>
+      </form>
+
+      <div id="loginError" class="alert-error" style="display: none;">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 0C4.48 0 0 4.48 0 10C0 15.52 4.48 20 10 20C15.52 20 20 15.52 20 10C20 4.48 15.52 0 10 0ZM11 15H9V13H11V15ZM11 11H9V5H11V11Z" fill="#ef4444"/>
+        </svg>
+        <span id="errorText"></span>
+      </div>
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+</body>
+</html>
