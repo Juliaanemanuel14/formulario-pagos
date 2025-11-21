@@ -413,13 +413,14 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
       // Generar asunto del email: Presupuesto "proveedor" - Periodo: "Mes Año" - Local: "locales"
       const asunto = `Presupuesto ${proveedor} - Periodo: ${mesServicio} ${añoServicio} - Local: ${locales.join(', ')}`;
 
-      // Preparar lista de destinatarios
-      const destinatarios = [process.env.EMAIL_TO, process.env.EMAIL_TO_CC].filter(Boolean).join(', ');
+      // Preparar lista de destinatarios (Resend usa arrays, no strings con comas)
+      const emailTo = process.env.EMAIL_TO;
+      const emailCc = process.env.EMAIL_TO_CC;
 
       // Enviar email
       const mailOptions = {
-        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-        to: destinatarios,
+        to: emailTo,
+        cc: emailCc,
         subject: asunto,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">
@@ -493,27 +494,44 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
       };
 
       // Enviar email con Resend
-      resend.emails.send({
+      const resendPayload = {
         from: 'Registro de Pagos <onboarding@resend.dev>',
-        to: [mailOptions.to],
-        cc: mailOptions.cc ? [mailOptions.cc] : undefined,
+        to: mailOptions.to,
         subject: mailOptions.subject,
         html: mailOptions.html
-      })
+      };
+
+      // Agregar CC solo si existe
+      if (mailOptions.cc) {
+        resendPayload.cc = mailOptions.cc;
+      }
+
+      resend.emails.send(resendPayload)
       .then((result) => {
-        console.log('Email enviado exitosamente. Response:', JSON.stringify(result));
-        console.log('Enviado a:', mailOptions.to, 'con copia a:', mailOptions.cc);
-        res.status(201).json({
-          success: true,
-          message: 'Gasto registrado y email enviado correctamente',
-          pagoId: pagoIds[0],
-          pagoIds: pagoIds,
-          emailSent: true
-        });
+        if (result.error) {
+          console.error('Error en respuesta de Resend:', result.error);
+          res.status(200).json({
+            success: true,
+            message: 'Gasto registrado correctamente, pero hubo un error al enviar el email',
+            pagoId: pagoIds[0],
+            pagoIds: pagoIds,
+            emailSent: false
+          });
+        } else {
+          console.log('✓ Email enviado exitosamente. ID:', result.data?.id);
+          console.log('  → Destinatario principal:', mailOptions.to);
+          console.log('  → Copia:', mailOptions.cc || 'ninguna');
+          res.status(201).json({
+            success: true,
+            message: 'Gasto registrado y email enviado correctamente',
+            pagoId: pagoIds[0],
+            pagoIds: pagoIds,
+            emailSent: true
+          });
+        }
       })
       .catch((error) => {
-        console.error('Error al enviar el email con Resend:', error);
-        console.error('Error completo:', JSON.stringify(error, null, 2));
+        console.error('✗ Error al enviar el email con Resend:', error.message);
         res.status(200).json({
           success: true,
           message: 'Gasto registrado correctamente, pero hubo un error al enviar el email',
