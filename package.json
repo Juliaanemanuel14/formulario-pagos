@@ -5,6 +5,7 @@
   "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
+    "start:pg": "node backend/server-pg.js",
     "dev": "nodemon backend/server.js",
     "init-db": "node backend/init-db.js",
     "migrate-db": "node backend/migrate-db.js",

@@ -2,20 +2,21 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const cors = require('cors');
 const path = require('path');
+const bcrypt = require('bcrypt');
+const rateLimit = require('express-rate-limit');
 const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Usuarios autorizados (hardcoded)
-const USERS = {
-  'Lucas Ortiz': '7894',
-  'Julian Salvatierra': '4226',
-  'Matias Huss': '1994'
-};
+// NOTA: Los usuarios ahora se almacenan en la tabla 'usuarios' de la BD
+// con contraseñas hasheadas usando bcrypt para mayor seguridad
+
+// Trust proxy - necesario para Railway
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors({
@@ -25,7 +26,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Configuración de sesiones con PostgreSQL
+// Configuración de sesiones con PostgreSQL para persistencia
 app.use(session({
   store: new pgSession({
     pool: db.pool,
@@ -35,30 +36,37 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production', // true en producción con HTTPS
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 horas
+    maxAge: 24 * 60 * 60 * 1000, // 24 horas
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
 // Servir archivos estáticos
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Inicializar tablas al iniciar
-db.initTables().catch(err => {
-  console.error('Error al inicializar tablas:', err);
+// Rate limiting para login - máximo 5 intentos por 15 minutos
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 5, // límite de 5 solicitudes por ventana
+  message: {
+    success: false,
+    message: 'Demasiados intentos de inicio de sesión. Por favor, intente de nuevo en 15 minutos.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
-// Configuración de nodemailer
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: process.env.EMAIL_SECURE === 'true',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  }
+// Inicializar la base de datos automáticamente
+db.initTables().then(() => {
+  console.log('✅ Base de datos PostgreSQL inicializada correctamente\n');
+}).catch(err => {
+  console.error('❌ Error al inicializar la base de datos:', err);
 });
+
+// Configuración de Resend para envío de emails
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Middleware de autenticación
 const requireAuth = (req, res, next) => {
@@ -74,8 +82,8 @@ const requireAuth = (req, res, next) => {
 
 // ===== ENDPOINTS DE AUTENTICACIÓN =====
 
-// Endpoint de login
-app.post('/api/login', (req, res) => {
+// Endpoint de login con rate limiting
+app.post('/api/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -85,25 +93,60 @@ app.post('/api/login', (req, res) => {
     });
   }
 
-  // Verificar credenciales
-  if (USERS[username] && USERS[username] === password) {
-    // Crear sesión
-    req.session.user = {
-      username: username,
-      loginTime: new Date()
-    };
+  try {
+    // Buscar usuario en la base de datos
+    const result = await db.query(
+      'SELECT id, username, password_hash, rol, activo FROM usuarios WHERE username = $1',
+      [username]
+    );
 
-    res.json({
-      success: true,
-      message: 'Login exitoso',
-      user: {
-        username: username
-      }
-    });
-  } else {
-    res.status(401).json({
+    const user = result.rows[0];
+
+    // Verificar si el usuario existe y está activo
+    if (!user || user.activo !== true) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario o contraseña incorrectos'
+      });
+    }
+
+    // Verificar contraseña con bcrypt
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
+
+    if (passwordMatch) {
+      // Actualizar último acceso
+      await db.query(
+        'UPDATE usuarios SET ultimo_acceso = CURRENT_TIMESTAMP WHERE id = $1',
+        [user.id]
+      );
+
+      // Crear sesión
+      req.session.user = {
+        id: user.id,
+        username: user.username,
+        rol: user.rol,
+        loginTime: new Date()
+      };
+
+      res.json({
+        success: true,
+        message: 'Login exitoso',
+        user: {
+          username: user.username,
+          rol: user.rol
+        }
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        message: 'Usuario o contraseña incorrectos'
+      });
+    }
+  } catch (error) {
+    console.error('Error en login:', error);
+    res.status(500).json({
       success: false,
-      message: 'Usuario o contraseña incorrectos'
+      message: 'Error en el servidor'
     });
   }
 });
@@ -148,166 +191,250 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
   const client = await db.getClient();
 
   try {
-    const { local, fecha, items } = req.body;
+    const { locales, proveedor, fechaPago, fechaServicio, moneda, concepto, importe, observacion } = req.body;
     const usuario = req.session.user.username;
 
     // Validación de campos requeridos
-    if (!local || !fecha || !items || !Array.isArray(items) || items.length === 0) {
+    if (!locales || !Array.isArray(locales) || locales.length === 0) {
+      client.release();
       return res.status(400).json({
         success: false,
-        message: 'Local, fecha y al menos un item son requeridos'
+        message: 'Debe seleccionar al menos un local'
       });
     }
 
-    // Validar items
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (!item.concepto || !item.importe) {
-        return res.status(400).json({
-          success: false,
-          message: `El item ${i + 1} debe tener concepto e importe`
-        });
-      }
-
-      const importeNum = parseFloat(item.importe);
-      if (isNaN(importeNum) || importeNum <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: `El importe del item ${i + 1} debe ser un número válido mayor a 0`
-        });
-      }
+    if (!proveedor || !proveedor.trim()) {
+      client.release();
+      return res.status(400).json({
+        success: false,
+        message: 'El nombre del proveedor es requerido'
+      });
     }
+
+    if (!fechaPago || !fechaServicio) {
+      client.release();
+      return res.status(400).json({
+        success: false,
+        message: 'Las fechas de pago y servicio son requeridas'
+      });
+    }
+
+    if (!moneda || !moneda.trim()) {
+      client.release();
+      return res.status(400).json({
+        success: false,
+        message: 'La moneda es requerida'
+      });
+    }
+
+    if (!concepto || !concepto.trim()) {
+      client.release();
+      return res.status(400).json({
+        success: false,
+        message: 'El concepto es requerido'
+      });
+    }
+
+    const importeNum = parseFloat(importe);
+    if (isNaN(importeNum) || importeNum <= 0) {
+      client.release();
+      return res.status(400).json({
+        success: false,
+        message: 'El importe debe ser un número válido mayor a 0'
+      });
+    }
+
+    // Calcular importe por local (dividir el total entre el número de locales)
+    const importePorLocal = importeNum / locales.length;
+
+    // Array para almacenar los IDs de pagos creados
+    const pagoIds = [];
 
     // Comenzar transacción
     await client.query('BEGIN');
 
-    // Insertar pago principal
+    // SQL para insertar un pago para un local específico
     const insertPagoSQL = `
-      INSERT INTO pagos (local, fecha, usuario_registro)
-      VALUES ($1, $2, $3)
+      INSERT INTO pagos (local, proveedor, fecha_pago, fecha_servicio, moneda, concepto, importe, observacion, usuario_registro)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
     `;
 
-    const pagoResult = await client.query(insertPagoSQL, [local, fecha, usuario]);
-    const pagoId = pagoResult.rows[0].id;
-
-    console.log(`Gasto registrado con ID: ${pagoId} por ${usuario}`);
-
-    // Insertar items del pago
-    const insertItemSQL = `
-      INSERT INTO pago_items (pago_id, concepto, importe, observacion)
-      VALUES ($1, $2, $3, $4)
-    `;
-
-    let totalImporte = 0;
-    for (const item of items) {
-      const importeNum = parseFloat(item.importe);
-      totalImporte += importeNum;
-
-      await client.query(insertItemSQL, [
-        pagoId,
-        item.concepto,
-        importeNum,
-        item.observacion || ''
+    // Procesar cada local
+    for (const local of locales) {
+      const result = await client.query(insertPagoSQL, [
+        local,
+        proveedor,
+        fechaPago,
+        fechaServicio,
+        moneda,
+        concepto,
+        importePorLocal,
+        observacion || '',
+        usuario
       ]);
+
+      const pagoId = result.rows[0].id;
+      pagoIds.push(pagoId);
+      console.log(`Gasto registrado con ID: ${pagoId} para local ${local} por ${usuario}`);
     }
 
     // Confirmar transacción
     await client.query('COMMIT');
 
-    // Generar tabla HTML de items para el email
-    let itemsTableHTML = '';
-    items.forEach((item, index) => {
-      const bgColor = index % 2 === 0 ? '#f9fafb' : '#ffffff';
-      itemsTableHTML += `
-        <tr style="background-color: ${bgColor};">
-          <td style="padding: 12px; border: 1px solid #e5e7eb;">${item.concepto}</td>
-          <td style="padding: 12px; border: 1px solid #e5e7eb; color: #10b981; font-weight: 600; text-align: right;">$${parseFloat(item.importe).toFixed(2)}</td>
-          <td style="padding: 12px; border: 1px solid #e5e7eb;">${item.observacion || '-'}</td>
-        </tr>
-      `;
-    });
+    // Función para enviar email de confirmación
+    async function enviarEmailConfirmacion() {
+      // Obtener mes y año de fecha_servicio
+      const fechaServicioDate = new Date(fechaServicio + 'T00:00:00');
+      const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      const mesServicio = meses[fechaServicioDate.getMonth()];
+      const añoServicio = fechaServicioDate.getFullYear();
 
-    // Enviar email
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: process.env.EMAIL_TO,
-      subject: `Nueva Solicitud de Gastos - ${local}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">
-          <h2 style="color: #4f46e5; border-bottom: 2px solid #4f46e5; padding-bottom: 10px;">
-            Nueva Solicitud de Gastos
-          </h2>
+      // Información sobre división por locales
+      let localesInfo = '';
+      if (locales.length > 1) {
+        localesInfo = `
+          <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 20px 0; border-radius: 4px;">
+            <p style="margin: 0; color: #92400e; font-weight: 600;">
+              ℹ️ Este gasto se dividió entre ${locales.length} locales:
+            </p>
+            <p style="margin: 8px 0 0 0; color: #92400e;">
+              ${locales.join(', ')}
+            </p>
+            <p style="margin: 8px 0 0 0; color: #92400e;">
+              Importe por local: <strong>$${importePorLocal.toFixed(2)}</strong>
+            </p>
+          </div>
+        `;
+      }
 
-          <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-            <tr style="background-color: #f9fafb;">
-              <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold; width: 150px;">ID:</td>
-              <td style="padding: 12px; border: 1px solid #e5e7eb;">#${pagoId}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Local:</td>
-              <td style="padding: 12px; border: 1px solid #e5e7eb;">${local}</td>
-            </tr>
-            <tr style="background-color: #f9fafb;">
-              <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Fecha:</td>
-              <td style="padding: 12px; border: 1px solid #e5e7eb;">${fecha}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Registrado por:</td>
-              <td style="padding: 12px; border: 1px solid #e5e7eb; color: #4f46e5; font-weight: bold;">${usuario}</td>
-            </tr>
-          </table>
+      // Generar asunto del email: Presupuesto "proveedor" - Periodo: "Mes Año" - Local: "locales"
+      const asunto = `Presupuesto ${proveedor} - Periodo: ${mesServicio} ${añoServicio} - Local: ${locales.join(', ')}`;
 
-          <h3 style="color: #4f46e5; margin-top: 30px; margin-bottom: 15px;">Items del Gasto</h3>
+      // Preparar lista de destinatarios (Resend usa arrays, no strings con comas)
+      const emailTo = process.env.EMAIL_TO;
+      const emailCc = process.env.EMAIL_TO_CC;
 
-          <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-              <tr style="background-color: #4f46e5; color: white;">
-                <th style="padding: 12px; border: 1px solid #e5e7eb; text-align: left;">Concepto</th>
-                <th style="padding: 12px; border: 1px solid #e5e7eb; text-align: right;">Importe</th>
-                <th style="padding: 12px; border: 1px solid #e5e7eb; text-align: left;">Observación</th>
+      // Preparar opciones del email
+      const resendPayload = {
+        from: 'Registro de Pagos <onboarding@resend.dev>',
+        to: emailTo,
+        subject: asunto,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">
+            <h2 style="color: #4f46e5; border-bottom: 2px solid #4f46e5; padding-bottom: 10px;">
+              Nueva Solicitud de Gastos
+            </h2>
+
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+              <tr style="background-color: #f9fafb;">
+                <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold; width: 150px;">IDs:</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb;">#${pagoIds.join(', #')}</td>
               </tr>
-            </thead>
-            <tbody>
-              ${itemsTableHTML}
-            </tbody>
-            <tfoot>
-              <tr style="background-color: #f3f4f6; font-weight: bold;">
-                <td style="padding: 12px; border: 1px solid #e5e7eb;">TOTAL</td>
-                <td style="padding: 12px; border: 1px solid #e5e7eb; color: #10b981; font-size: 18px; text-align: right;">$${totalImporte.toFixed(2)}</td>
-                <td style="padding: 12px; border: 1px solid #e5e7eb;"></td>
+              <tr>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Local(es):</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb;">${locales.join(', ')}</td>
               </tr>
-            </tfoot>
-          </table>
+              <tr style="background-color: #f9fafb;">
+                <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Proveedor:</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb;">${proveedor}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Fecha Pago:</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb;">${fechaPago}</td>
+              </tr>
+              <tr style="background-color: #f9fafb;">
+                <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Fecha Servicio:</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb;">${fechaServicio}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Moneda:</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb;">${moneda}</td>
+              </tr>
+              <tr style="background-color: #f9fafb;">
+                <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Registrado por:</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; color: #4f46e5; font-weight: bold;">${usuario}</td>
+              </tr>
+            </table>
 
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+            ${localesInfo}
 
-          <p style="color: #6b7280; font-size: 14px; text-align: center;">
-            <em>Registro generado automáticamente el ${new Date().toLocaleString('es-ES')}</em>
-          </p>
-        </div>
-      `
-    };
+            <h3 style="color: #4f46e5; margin-top: 30px; margin-bottom: 15px;">Detalles del Gasto</h3>
 
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.error('Error al enviar el email:', error);
-        return res.status(200).json({
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr style="background-color: #f9fafb;">
+                <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold; width: 150px;">Concepto:</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb;">${concepto}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Importe Total:</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; color: #10b981; font-weight: 600; font-size: 18px;">$${importeNum.toFixed(2)}</td>
+              </tr>
+              ${locales.length > 1 ? `
+              <tr style="background-color: #f9fafb;">
+                <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Por Local:</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; color: #6b7280; font-weight: 600;">$${importePorLocal.toFixed(2)}</td>
+              </tr>` : ''}
+              ${observacion ? `
+              <tr>
+                <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: bold;">Observación:</td>
+                <td style="padding: 12px; border: 1px solid #e5e7eb;">${observacion}</td>
+              </tr>` : ''}
+            </table>
+
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+
+            <p style="color: #6b7280; font-size: 14px; text-align: center;">
+              <em>Registro generado automáticamente el ${new Date().toLocaleString('es-ES')}</em>
+            </p>
+          </div>
+        `
+      };
+
+      // Agregar CC solo si existe
+      if (emailCc) {
+        resendPayload.cc = emailCc;
+      }
+
+      // Enviar email con Resend
+      try {
+        const result = await resend.emails.send(resendPayload);
+
+        if (result.error) {
+          console.error('Error en respuesta de Resend:', result.error);
+          res.status(200).json({
+            success: true,
+            message: 'Gasto registrado correctamente, pero hubo un error al enviar el email',
+            pagoId: pagoIds[0],
+            pagoIds: pagoIds,
+            emailSent: false
+          });
+        } else {
+          console.log('✓ Email enviado exitosamente. ID:', result.data?.id);
+          console.log('  → Destinatario principal:', emailTo);
+          console.log('  → Copia:', emailCc || 'ninguna');
+          res.status(201).json({
+            success: true,
+            message: 'Gasto registrado y email enviado correctamente',
+            pagoId: pagoIds[0],
+            pagoIds: pagoIds,
+            emailSent: true
+          });
+        }
+      } catch (error) {
+        console.error('✗ Error al enviar el email con Resend:', error.message);
+        res.status(200).json({
           success: true,
           message: 'Gasto registrado correctamente, pero hubo un error al enviar el email',
-          pagoId: pagoId,
+          pagoId: pagoIds[0],
+          pagoIds: pagoIds,
           emailSent: false
         });
       }
+    }
 
-      console.log('Email enviado:', info.messageId);
-      res.status(201).json({
-        success: true,
-        message: 'Gasto registrado y email enviado correctamente',
-        pagoId: pagoId,
-        emailSent: true
-      });
-    });
+    // Enviar email de confirmación
+    await enviarEmailConfirmacion();
 
   } catch (error) {
     // Rollback en caso de error
@@ -322,41 +449,69 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
   }
 });
 
-// Endpoint GET para obtener todos los pagos con sus items
+// Endpoint GET para obtener todos los pagos
 app.get('/api/pagos', requireAuth, async (req, res) => {
   try {
-    const pagosSQL = 'SELECT * FROM pagos ORDER BY fecha_registro DESC';
-    const pagosResult = await db.query(pagosSQL);
-
-    if (pagosResult.rows.length === 0) {
-      return res.json({
-        success: true,
-        data: []
-      });
-    }
-
-    // Obtener items para cada pago
-    const pagosConItems = await Promise.all(
-      pagosResult.rows.map(async (pago) => {
-        const itemsSQL = 'SELECT * FROM pago_items WHERE pago_id = $1 ORDER BY id';
-        const itemsResult = await db.query(itemsSQL, [pago.id]);
-
-        return {
-          ...pago,
-          items: itemsResult.rows
-        };
-      })
-    );
+    const sql = 'SELECT * FROM pagos ORDER BY fecha_registro DESC';
+    const result = await db.query(sql);
 
     res.json({
       success: true,
-      data: pagosConItems
+      data: result.rows
     });
   } catch (error) {
     console.error('Error al consultar la base de datos:', error);
     res.status(500).json({
       success: false,
       message: 'Error al obtener los datos'
+    });
+  }
+});
+
+// Endpoint PATCH para actualizar el campo OP de un pago
+app.patch('/api/pagos/:id/op', requireAuth, async (req, res) => {
+  const pagoId = req.params.id;
+  const { op } = req.body;
+  const usuario = req.session.user.username;
+
+  // Solo Julian Salvatierra puede actualizar el OP
+  if (usuario !== 'Julian Salvatierra') {
+    return res.status(403).json({
+      success: false,
+      message: 'No tienes permisos para actualizar este campo'
+    });
+  }
+
+  // Validar que op sea un número o vacío
+  if (op && !/^\d+$/.test(op.trim())) {
+    return res.status(400).json({
+      success: false,
+      message: 'El campo OP debe contener solo números'
+    });
+  }
+
+  try {
+    const sql = 'UPDATE pagos SET op = $1 WHERE id = $2';
+    const result = await db.query(sql, [op || null, pagoId]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pago no encontrado'
+      });
+    }
+
+    console.log(`Campo OP actualizado para pago #${pagoId} por ${usuario}: ${op || 'vacío'}`);
+
+    res.json({
+      success: true,
+      message: 'Campo OP actualizado correctamente'
+    });
+  } catch (error) {
+    console.error('Error al actualizar OP:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar el campo OP'
     });
   }
 });
@@ -386,7 +541,7 @@ app.get('/', (req, res) => {
   }
 });
 
-// Health check para Cloud Run
+// Health check para Railway
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy' });
 });
@@ -406,7 +561,7 @@ app.listen(PORT, () => {
   console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
 });
 
-// Cerrar conexiones al cerrar el servidor
+// Cerrar la base de datos cuando se cierre el servidor
 process.on('SIGTERM', async () => {
   console.log('SIGTERM recibido, cerrando conexiones...');
   await db.close();
