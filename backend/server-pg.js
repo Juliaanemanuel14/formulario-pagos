@@ -312,17 +312,20 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
       const asunto = `Presupuesto ${proveedor} - Periodo: ${mesServicio} ${añoServicio} - Local: ${locales.join(', ')}`;
 
       // Preparar lista de destinatarios
+      // NOTA: Resend con onboarding@resend.dev NO soporta CC/BCC
+      // Solución: enviar a todos los destinatarios en el campo 'to'
       const emailTo = process.env.EMAIL_TO;
-
-      // Soportar múltiples emails CC separados por coma
       const emailCc = process.env.EMAIL_TO_CC
         ? process.env.EMAIL_TO_CC.split(',').map(email => email.trim()).filter(Boolean)
-        : undefined;
+        : [];
+
+      // Combinar destinatarios: [emailTo, ...emailCc]
+      const allRecipients = [emailTo, ...emailCc].filter(Boolean);
 
       // Preparar opciones del email
       const resendPayload = {
         from: 'Registro de Pagos <onboarding@resend.dev>',
-        to: emailTo,
+        to: allRecipients,
         subject: asunto,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">
@@ -395,12 +398,7 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
         `
       };
 
-      // Agregar CC solo si existe
-      if (emailCc) {
-        resendPayload.cc = emailCc;
-      }
-
-      // Enviar email con Resend
+      // Enviar email con Resend (todos los destinatarios en 'to')
       try {
         const result = await resend.emails.send(resendPayload);
 
@@ -415,8 +413,7 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
           });
         } else {
           console.log('✓ Email enviado exitosamente. ID:', result.data?.id);
-          console.log('  → Destinatario principal:', emailTo);
-          console.log('  → Copia(s):', emailCc ? (Array.isArray(emailCc) ? emailCc.join(', ') : emailCc) : 'ninguna');
+          console.log('  → Destinatarios:', allRecipients.join(', '));
           res.status(201).json({
             success: true,
             message: 'Gasto registrado y email enviado correctamente',
