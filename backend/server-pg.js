@@ -392,7 +392,7 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
       // Preparar el objeto de email para Brevo con soporte CC/BCC
       const sendSmtpEmail = new brevo.SendSmtpEmail();
 
-      sendSmtpEmail.sender = { name: 'Registro de Pagos', email: 'noreply@desarrollogastro.com' };
+      sendSmtpEmail.sender = { name: 'Registro de Pagos', email: 'desarrollogastro@gmail.com' };
       sendSmtpEmail.to = [{ email: emailTo }];
 
       // Agregar destinatarios CC si existen
