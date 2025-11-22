@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
-const { Resend } = require('resend');
+const brevo = require('@getbrevo/brevo');
 const cors = require('cors');
 const path = require('path');
 const bcrypt = require('bcrypt');
@@ -65,8 +65,9 @@ db.initTables().then(() => {
   console.error('❌ Error al inicializar la base de datos:', err);
 });
 
-// Configuración de Resend para envío de emails
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Configuración de Brevo para envío de emails con soporte CC/BCC
+const apiInstance = new brevo.TransactionalEmailsApi();
+apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
 
 // Middleware de autenticación
 const requireAuth = (req, res, next) => {
@@ -311,23 +312,14 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
       // Generar asunto del email: Presupuesto "proveedor" - Periodo: "Mes Año" - Local: "locales"
       const asunto = `Presupuesto ${proveedor} - Periodo: ${mesServicio} ${añoServicio} - Local: ${locales.join(', ')}`;
 
-      // Preparar lista de destinatarios
-      // NOTA: Resend con onboarding@resend.dev NO soporta CC/BCC
-      // Solución: enviar a todos los destinatarios en el campo 'to'
+      // Preparar lista de destinatarios con soporte CC/BCC usando Brevo
       const emailTo = process.env.EMAIL_TO;
       const emailCc = process.env.EMAIL_TO_CC
         ? process.env.EMAIL_TO_CC.split(',').map(email => email.trim()).filter(Boolean)
         : [];
 
-      // Combinar destinatarios: [emailTo, ...emailCc]
-      const allRecipients = [emailTo, ...emailCc].filter(Boolean);
-
-      // Preparar opciones del email
-      const resendPayload = {
-        from: 'Registro de Pagos <onboarding@resend.dev>',
-        to: allRecipients,
-        subject: asunto,
-        html: `
+      // Construir el contenido HTML del email
+      const htmlContent = `
           <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">
             <h2 style="color: #4f46e5; border-bottom: 2px solid #4f46e5; padding-bottom: 10px;">
               Nueva Solicitud de Gastos
@@ -395,35 +387,41 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
               <em>Registro generado automáticamente el ${new Date().toLocaleString('es-ES')}</em>
             </p>
           </div>
-        `
-      };
+        `;
 
-      // Enviar email con Resend (todos los destinatarios en 'to')
+      // Preparar el objeto de email para Brevo con soporte CC/BCC
+      const sendSmtpEmail = new brevo.SendSmtpEmail();
+
+      sendSmtpEmail.sender = { name: 'Registro de Pagos', email: 'noreply@desarrollogastro.com' };
+      sendSmtpEmail.to = [{ email: emailTo }];
+
+      // Agregar destinatarios CC si existen
+      if (emailCc.length > 0) {
+        sendSmtpEmail.cc = emailCc.map(email => ({ email }));
+      }
+
+      sendSmtpEmail.subject = asunto;
+      sendSmtpEmail.htmlContent = htmlContent;
+
+      // Enviar email con Brevo (soporta CC/BCC)
       try {
-        const result = await resend.emails.send(resendPayload);
+        const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
-        if (result.error) {
-          console.error('Error en respuesta de Resend:', result.error);
-          res.status(200).json({
-            success: true,
-            message: 'Gasto registrado correctamente, pero hubo un error al enviar el email',
-            pagoId: pagoIds[0],
-            pagoIds: pagoIds,
-            emailSent: false
-          });
-        } else {
-          console.log('✓ Email enviado exitosamente. ID:', result.data?.id);
-          console.log('  → Destinatarios:', allRecipients.join(', '));
-          res.status(201).json({
-            success: true,
-            message: 'Gasto registrado y email enviado correctamente',
-            pagoId: pagoIds[0],
-            pagoIds: pagoIds,
-            emailSent: true
-          });
+        console.log('✓ Email enviado exitosamente con Brevo. ID:', result.messageId);
+        console.log('  → Destinatario principal:', emailTo);
+        if (emailCc.length > 0) {
+          console.log('  → CC:', emailCc.join(', '));
         }
+
+        res.status(201).json({
+          success: true,
+          message: 'Gasto registrado y email enviado correctamente',
+          pagoId: pagoIds[0],
+          pagoIds: pagoIds,
+          emailSent: true
+        });
       } catch (error) {
-        console.error('✗ Error al enviar el email con Resend:', error.message);
+        console.error('✗ Error al enviar el email con Brevo:', error.message);
         res.status(200).json({
           success: true,
           message: 'Gasto registrado correctamente, pero hubo un error al enviar el email',

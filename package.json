@@ -25,6 +25,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@getbrevo/brevo": "^2.2.0",
     "bcrypt": "^6.0.0",
     "connect-pg-simple": "^9.0.1",
     "connect-sqlite3": "^0.9.16",
