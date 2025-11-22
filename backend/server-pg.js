@@ -407,7 +407,8 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
       try {
         const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
-        console.log('✓ Email enviado exitosamente con Brevo. ID:', result.messageId);
+        console.log('✓ Email enviado exitosamente con Brevo');
+        console.log('  → Respuesta completa:', JSON.stringify(result, null, 2));
         console.log('  → Destinatario principal:', emailTo);
         if (emailCc.length > 0) {
           console.log('  → CC:', emailCc.join(', '));
@@ -421,13 +422,17 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
           emailSent: true
         });
       } catch (error) {
-        console.error('✗ Error al enviar el email con Brevo:', error.message);
+        console.error('✗ Error al enviar el email con Brevo:');
+        console.error('  → Error completo:', JSON.stringify(error, null, 2));
+        console.error('  → Mensaje:', error.message);
+        console.error('  → Response:', error.response?.body);
         res.status(200).json({
           success: true,
           message: 'Gasto registrado correctamente, pero hubo un error al enviar el email',
           pagoId: pagoIds[0],
           pagoIds: pagoIds,
-          emailSent: false
+          emailSent: false,
+          emailError: error.message
         });
       }
     }
