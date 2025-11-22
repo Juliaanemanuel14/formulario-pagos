@@ -311,9 +311,13 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
       // Generar asunto del email: Presupuesto "proveedor" - Periodo: "Mes Año" - Local: "locales"
       const asunto = `Presupuesto ${proveedor} - Periodo: ${mesServicio} ${añoServicio} - Local: ${locales.join(', ')}`;
 
-      // Preparar lista de destinatarios (Resend usa arrays, no strings con comas)
+      // Preparar lista de destinatarios
       const emailTo = process.env.EMAIL_TO;
-      const emailCc = process.env.EMAIL_TO_CC;
+
+      // Soportar múltiples emails CC separados por coma
+      const emailCc = process.env.EMAIL_TO_CC
+        ? process.env.EMAIL_TO_CC.split(',').map(email => email.trim()).filter(Boolean)
+        : undefined;
 
       // Preparar opciones del email
       const resendPayload = {
@@ -412,7 +416,7 @@ app.post('/api/pagos', requireAuth, async (req, res) => {
         } else {
           console.log('✓ Email enviado exitosamente. ID:', result.data?.id);
           console.log('  → Destinatario principal:', emailTo);
-          console.log('  → Copia:', emailCc || 'ninguna');
+          console.log('  → Copia(s):', emailCc ? (Array.isArray(emailCc) ? emailCc.join(', ') : emailCc) : 'ninguna');
           res.status(201).json({
             success: true,
             message: 'Gasto registrado y email enviado correctamente',
