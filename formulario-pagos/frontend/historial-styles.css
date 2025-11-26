@@ -32,13 +32,13 @@
   margin-bottom: 24px;
   box-shadow: var(--shadow-lg);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   align-items: end;
 }
 
 .search-box {
-  grid-column: span 2;
+  grid-column: span 4;
   position: relative;
   display: flex;
   align-items: center;
@@ -473,6 +473,16 @@
 }
 
 /* Responsive */
+@media (max-width: 1200px) {
+  .filters-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .search-box {
+    grid-column: span 2;
+  }
+}
+
 @media (max-width: 768px) {
   .filters-section {
     grid-template-columns: 1fr;
