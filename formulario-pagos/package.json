@@ -8,6 +8,7 @@
     "dev": "nodemon backend/server.js",
     "init-db": "node backend/init-db.js",
     "migrate-db": "node backend/migrate-db.js",
+    "migrate-pg": "node backend/migrate-pg.js",
     "fix-db": "node backend/fix-db-constraints.js",
     "check-db": "node backend/check-db.js",
     "add-moneda": "node backend/add-moneda-column.js",

@@ -66,7 +66,15 @@ async function initTables() {
     CREATE TABLE IF NOT EXISTS pagos (
       id SERIAL PRIMARY KEY,
       local VARCHAR(255) NOT NULL,
-      fecha DATE NOT NULL,
+      proveedor VARCHAR(255),
+      fecha_pago DATE,
+      fecha_servicio DATE,
+      fecha DATE,
+      moneda VARCHAR(50),
+      concepto TEXT,
+      importe DECIMAL(10, 2),
+      observacion TEXT,
+      op VARCHAR(50),
       usuario_registro VARCHAR(255) NOT NULL,
       fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
