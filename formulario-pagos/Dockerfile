@@ -7,8 +7,8 @@ WORKDIR /app
 # Copiar archivos de dependencias
 COPY package*.json ./
 
-# Instalar dependencias de producción
-RUN npm ci --only=production
+# Instalar dependencias de producción (incluyendo resend)
+RUN npm ci --only=production && npm cache clean --force
 
 # Copiar el código de la aplicación
 COPY backend ./backend
@@ -21,9 +21,9 @@ RUN useradd -m -u 1001 appuser && \
 # Cambiar al usuario no-root
 USER appuser
 
-# Exponer puerto (Cloud Run usa la variable PORT)
+# Exponer puerto
 ENV PORT=8080
 EXPOSE 8080
 
-# Comando para iniciar la aplicación
+# Comando para iniciar la aplicación con Resend
 CMD ["node", "backend/server-pg.js"]
