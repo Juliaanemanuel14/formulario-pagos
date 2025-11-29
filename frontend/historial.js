@@ -5,9 +5,6 @@ const filterFechaPagoDesde = document.getElementById('filterFechaPagoDesde');
 const filterFechaPagoHasta = document.getElementById('filterFechaPagoHasta');
 const filterFechaServicioDesde = document.getElementById('filterFechaServicioDesde');
 const filterFechaServicioHasta = document.getElementById('filterFechaServicioHasta');
-const filterLocal = document.getElementById('filterLocal');
-const filterUsuario = document.getElementById('filterUsuario');
-const filterConcepto = document.getElementById('filterConcepto');
 const loadingSpinner = document.getElementById('loadingSpinner');
 const noDataMessage = document.getElementById('noDataMessage');
 const pagosTable = document.getElementById('pagosTable');
@@ -83,7 +80,6 @@ async function loadPagos() {
       if (allPagos.length === 0) {
         showNoData();
       } else {
-        populateFilters();
         renderPagos(filteredPagos);
         updateStats(filteredPagos);
       }
@@ -294,10 +290,20 @@ function toggleExpandRow(pagoId) {
 
 // Formatear fecha
 function formatDate(dateString) {
-  const date = new Date(dateString + 'T00:00:00');
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
+  if (!dateString) return 'N/A';
+
+  // Si ya es un objeto Date, convertirlo a string
+  const dateStr = dateString instanceof Date ? dateString.toISOString() : dateString;
+
+  // PostgreSQL devuelve fechas en formato YYYY-MM-DD o ISO
+  const date = new Date(dateStr);
+
+  // Verificar si la fecha es válida
+  if (isNaN(date.getTime())) return 'N/A';
+
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const year = date.getUTCFullYear();
   return `${day}/${month}/${year}`;
 }
 
@@ -315,60 +321,6 @@ function updateStats(pagos) {
   importeTotalEl.textContent = `$${importeTotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 }
 
-// Poblar filtros con opciones únicas
-function populateFilters() {
-  // Obtener valores únicos
-  const locales = new Set();
-  const usuarios = new Set();
-  const conceptos = new Set();
-
-  allPagos.forEach(pago => {
-    locales.add(pago.local);
-    usuarios.add(pago.usuario_registro);
-
-    // Agregar conceptos (formato nuevo - directo en pago)
-    if (pago.concepto && pago.concepto.trim() !== '') {
-      conceptos.add(pago.concepto);
-    }
-
-    // Agregar conceptos (formato antiguo - en items)
-    if (pago.items && pago.items.length > 0) {
-      pago.items.forEach(item => {
-        if (item.concepto) {
-          conceptos.add(item.concepto);
-        }
-      });
-    }
-  });
-
-  // Poblar select de locales
-  filterLocal.innerHTML = '<option value="">Todos</option>';
-  Array.from(locales).sort().forEach(local => {
-    const option = document.createElement('option');
-    option.value = local;
-    option.textContent = local;
-    filterLocal.appendChild(option);
-  });
-
-  // Poblar select de usuarios
-  filterUsuario.innerHTML = '<option value="">Todos</option>';
-  Array.from(usuarios).sort().forEach(usuario => {
-    const option = document.createElement('option');
-    option.value = usuario;
-    option.textContent = usuario;
-    filterUsuario.appendChild(option);
-  });
-
-  // Poblar select de conceptos
-  filterConcepto.innerHTML = '<option value="">Todos</option>';
-  Array.from(conceptos).sort().forEach(concepto => {
-    const option = document.createElement('option');
-    option.value = concepto;
-    option.textContent = concepto;
-    filterConcepto.appendChild(option);
-  });
-}
-
 // Aplicar filtros
 function applyFilters() {
   const searchTerm = searchInput.value.toLowerCase().trim();
@@ -376,9 +328,6 @@ function applyFilters() {
   const fechaPagoHasta = filterFechaPagoHasta.value;
   const fechaServicioDesde = filterFechaServicioDesde.value;
   const fechaServicioHasta = filterFechaServicioHasta.value;
-  const localSeleccionado = filterLocal.value;
-  const usuarioSeleccionado = filterUsuario.value;
-  const conceptoSeleccionado = filterConcepto.value;
 
   filteredPagos = allPagos.filter(pago => {
     // Filtro de búsqueda general
@@ -435,37 +384,8 @@ function applyFilters() {
       matchesFechaServicioHasta = servicioFecha <= fechaServicioHasta;
     }
 
-    // Filtro de local
-    let matchesLocal = true;
-    if (localSeleccionado) {
-      matchesLocal = pago.local === localSeleccionado;
-    }
-
-    // Filtro de usuario
-    let matchesUsuario = true;
-    if (usuarioSeleccionado) {
-      matchesUsuario = pago.usuario_registro === usuarioSeleccionado;
-    }
-
-    // Filtro de concepto
-    let matchesConcepto = true;
-    if (conceptoSeleccionado) {
-      matchesConcepto = false;
-
-      // Verificar concepto directo (formato nuevo)
-      if (pago.concepto === conceptoSeleccionado) {
-        matchesConcepto = true;
-      }
-
-      // Verificar en items (formato antiguo)
-      if (!matchesConcepto && pago.items && pago.items.length > 0) {
-        matchesConcepto = pago.items.some(item => item.concepto === conceptoSeleccionado);
-      }
-    }
-
     return matchesSearch && matchesFechaPagoDesde && matchesFechaPagoHasta &&
-           matchesFechaServicioDesde && matchesFechaServicioHasta &&
-           matchesLocal && matchesUsuario && matchesConcepto;
+           matchesFechaServicioDesde && matchesFechaServicioHasta;
   });
 
   renderPagos(filteredPagos);
@@ -478,9 +398,6 @@ filterFechaPagoDesde.addEventListener('change', applyFilters);
 filterFechaPagoHasta.addEventListener('change', applyFilters);
 filterFechaServicioDesde.addEventListener('change', applyFilters);
 filterFechaServicioHasta.addEventListener('change', applyFilters);
-filterLocal.addEventListener('change', applyFilters);
-filterUsuario.addEventListener('change', applyFilters);
-filterConcepto.addEventListener('change', applyFilters);
 
 // Limpiar filtros
 function clearFilters() {
@@ -489,9 +406,6 @@ function clearFilters() {
   filterFechaPagoHasta.value = '';
   filterFechaServicioDesde.value = '';
   filterFechaServicioHasta.value = '';
-  filterLocal.value = '';
-  filterUsuario.value = '';
-  filterConcepto.value = '';
   filteredPagos = allPagos;
   renderPagos(filteredPagos);
   updateStats(filteredPagos);
