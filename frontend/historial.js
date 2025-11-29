@@ -191,7 +191,7 @@ function renderPagos(pagos) {
       <td style="text-align: center;">
         <span class="badge-items">${cantidadItems}</span>
       </td>
-      <td class="importe-cell">$${totalPago.toFixed(2)}</td>
+      <td class="importe-cell">${formatCurrency(totalPago)}</td>
       <td style="text-align: center;">${opCell}</td>
       <td>${pago.usuario_registro}</td>
     `;
@@ -230,7 +230,7 @@ function renderPagos(pagos) {
           itemsHTML += `
             <tr>
               <td>${item.concepto}</td>
-              <td>$${parseFloat(item.importe).toFixed(2)}</td>
+              <td>${formatCurrency(item.importe)}</td>
               <td>${item.observacion || '-'}</td>
             </tr>
           `;
@@ -241,7 +241,7 @@ function renderPagos(pagos) {
         itemsHTML = `
           <tr>
             <td>${pago.concepto}</td>
-            <td>$${totalPago.toFixed(2)}</td>
+            <td>${formatCurrency(totalPago)}</td>
             <td>${pago.observacion || '-'}</td>
           </tr>
         `;
@@ -312,6 +312,20 @@ function formatDate(dateString) {
   return `${day}/${month}/${year}`;
 }
 
+// Formatear número con separador de miles
+function formatCurrency(amount) {
+  const num = parseFloat(amount);
+  if (isNaN(num)) return '$0.00';
+
+  // Convertir a string con 2 decimales
+  const parts = num.toFixed(2).split('.');
+
+  // Agregar separador de miles (punto)
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+  return '$' + parts.join(',');
+}
+
 // Actualizar estadísticas
 function updateStats(pagos) {
   const total = pagos.length;
@@ -323,7 +337,7 @@ function updateStats(pagos) {
   });
 
   totalRegistrosEl.textContent = total.toLocaleString('es-ES');
-  importeTotalEl.textContent = `$${importeTotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+  importeTotalEl.textContent = formatCurrency(importeTotal);
 }
 
 // Poblar filtros con opciones únicas
