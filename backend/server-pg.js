@@ -10,6 +10,9 @@ const db = require('./db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Confiar en el proxy de Railway para HTTPS
+app.set('trust proxy', 1);
+
 // Usuarios autorizados (hardcoded)
 const USERS = {
   'Lucas Ortiz': '7894',
@@ -37,8 +40,10 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 horas
-  }
+    maxAge: 24 * 60 * 60 * 1000, // 24 horas
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  },
+  proxy: true
 }));
 
 // Servir archivos estáticos
