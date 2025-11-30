@@ -217,18 +217,8 @@ function validateMainFields() {
     fechaPagoError.textContent = 'La fecha de pago es requerida';
     isValid = false;
   } else {
-    const selectedDate = new Date(fechaPago.value);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (selectedDate > today) {
-      fechaPago.classList.add('error');
-      fechaPagoError.textContent = 'La fecha no puede ser futura';
-      isValid = false;
-    } else {
-      fechaPago.classList.remove('error');
-      fechaPagoError.textContent = '';
-    }
+    fechaPago.classList.remove('error');
+    fechaPagoError.textContent = '';
   }
 
   // Validar fecha servicio
