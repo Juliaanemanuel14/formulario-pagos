@@ -179,6 +179,26 @@ function renderPagos(pagos) {
       opCell = `<span style="color: #6b7280;">${opValue || '-'}</span>`;
     }
 
+    // Determinar si el usuario puede eliminar registros
+    const canDelete = currentUser === 'Julian Salvatierra';
+    let deleteCell = '';
+    if (canDelete) {
+      deleteCell = `
+        <td style="text-align: center;">
+          <button
+            class="btn-delete"
+            data-pago-id="${pago.id}"
+            style="padding: 6px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;"
+            title="Eliminar registro"
+          >
+            🗑️
+          </button>
+        </td>
+      `;
+    } else {
+      deleteCell = '<td></td>';
+    }
+
     row.innerHTML = `
       <td style="text-align: center; cursor: ${cantidadItems > 0 ? 'pointer' : 'default'};">
         ${expandIcon}
@@ -194,6 +214,7 @@ function renderPagos(pagos) {
       <td class="importe-cell">${formatCurrency(totalPago)}</td>
       <td style="text-align: center;">${opCell}</td>
       <td>${pago.usuario_registro}</td>
+      ${deleteCell}
     `;
 
     // Si tiene items o concepto, hacer la fila expandible
@@ -211,6 +232,17 @@ function renderPagos(pagos) {
         saveButton.addEventListener('click', (e) => {
           e.stopPropagation();
           saveOP(pago.id);
+        });
+      }
+    }
+
+    // Agregar event listener para el botón de eliminar (si existe)
+    if (canDelete) {
+      const deleteButton = row.querySelector('.btn-delete');
+      if (deleteButton) {
+        deleteButton.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deletePago(pago.id);
         });
       }
     }
@@ -267,7 +299,7 @@ function renderPagos(pagos) {
       }
 
       detailRow.innerHTML = `
-        <td colspan="10" style="padding: 0; background-color: #f9fafb;">
+        <td colspan="11" style="padding: 0; background-color: #f9fafb;">
           <div class="items-detail-container">
             <h4 class="items-detail-header">
               📝 Detalles del Pago #${pago.id}
@@ -739,5 +771,46 @@ async function saveOP(pagoId) {
     alert('Error de conexión al guardar el campo OP');
     button.textContent = '✓';
     button.disabled = false;
+  }
+}
+
+// Eliminar registro (solo Julian Salvatierra)
+async function deletePago(pagoId) {
+  // Confirmar eliminación
+  const pago = allPagos.find(p => p.id === parseInt(pagoId));
+  if (!pago) return;
+
+  const confirmMessage = `¿Está seguro que desea eliminar este registro?\n\n` +
+    `ID: ${pago.id}\n` +
+    `Local: ${pago.local}\n` +
+    `Proveedor: ${pago.proveedor}\n` +
+    `Importe: ${formatCurrency(obtenerImportePago(pago))}\n\n` +
+    `Esta acción no se puede deshacer.`;
+
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/pagos/${pagoId}`, {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      // Eliminar del array local
+      allPagos = allPagos.filter(p => p.id !== parseInt(pagoId));
+
+      // Re-aplicar filtros y renderizar
+      applyFilters();
+
+      alert('✓ Registro eliminado correctamente');
+    } else {
+      alert(data.message || 'Error al eliminar el registro');
+    }
+  } catch (error) {
+    console.error('Error al eliminar registro:', error);
+    alert('Error de conexión al eliminar el registro');
   }
 }

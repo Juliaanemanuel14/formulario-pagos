@@ -505,6 +505,89 @@ app.get('/api/pagos', requireAuth, async (req, res) => {
   }
 });
 
+// Endpoint PATCH para actualizar el campo OP de un pago
+app.patch('/api/pagos/:id/op', requireAuth, async (req, res) => {
+  const pagoId = req.params.id;
+  const { op } = req.body;
+  const usuario = req.session.user.username;
+
+  // Solo Julian Salvatierra y Giuli pueden actualizar el OP
+  if (usuario !== 'Julian Salvatierra' && usuario !== 'Giuli') {
+    return res.status(403).json({
+      success: false,
+      message: 'No tienes permisos para actualizar este campo'
+    });
+  }
+
+  // Validar que op sea un número o vacío
+  if (op && !/^\d+$/.test(op.trim())) {
+    return res.status(400).json({
+      success: false,
+      message: 'El campo OP debe contener solo números'
+    });
+  }
+
+  try {
+    const sql = 'UPDATE pagos SET op = $1 WHERE id = $2';
+    await db.query(sql, [op || null, pagoId]);
+
+    res.json({
+      success: true,
+      message: 'Campo OP actualizado correctamente'
+    });
+  } catch (error) {
+    console.error('Error al actualizar OP:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar el campo OP'
+    });
+  }
+});
+
+// Endpoint DELETE para eliminar un pago (solo Julian Salvatierra)
+app.delete('/api/pagos/:id', requireAuth, async (req, res) => {
+  const pagoId = req.params.id;
+  const usuario = req.session.user.username;
+
+  // Solo Julian Salvatierra puede eliminar registros
+  if (usuario !== 'Julian Salvatierra') {
+    return res.status(403).json({
+      success: false,
+      message: 'No tienes permisos para eliminar registros'
+    });
+  }
+
+  try {
+    // Verificar que el pago existe
+    const checkSQL = 'SELECT id FROM pagos WHERE id = $1';
+    const checkResult = await db.query(checkSQL, [pagoId]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Registro no encontrado'
+      });
+    }
+
+    // Eliminar el pago (CASCADE eliminará automáticamente los items asociados)
+    const deleteSQL = 'DELETE FROM pagos WHERE id = $1';
+    await db.query(deleteSQL, [pagoId]);
+
+    console.log(`Registro #${pagoId} eliminado por ${usuario}`);
+
+    res.json({
+      success: true,
+      message: 'Registro eliminado correctamente'
+    });
+  } catch (error) {
+    console.error('Error al eliminar registro:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al eliminar el registro'
+    });
+  }
+});
+
 // ===== RUTAS DE FRONTEND =====
 
 // Ruta de login
