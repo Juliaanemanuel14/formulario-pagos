@@ -605,7 +605,7 @@ function exportToExcel() {
   const csvRows = [];
 
   // Encabezados
-  const headers = ['ID', 'Fecha Pago', 'Fecha Servicio', 'Proveedor', 'Moneda', 'Local', 'Concepto', 'Monto Peso', 'Monto Dolar', 'Observación', 'Usuario', 'Fecha Registro'];
+  const headers = ['ID', 'Fecha Pago', 'Fecha Servicio', 'Proveedor', 'Moneda', 'Local', 'Concepto', 'Monto Peso', 'Monto Dolar', 'Observación', 'Nro OP', 'Usuario', 'Fecha Registro'];
   csvRows.push(headers.join(','));
 
   // Datos
@@ -628,6 +628,7 @@ function exportToExcel() {
           montoPeso,
           montoDolar,
           `"${item.observacion || ''}"`,
+          pago.op || '',
           `"${pago.usuario_registro}"`,
           formatDateTimeForExcel(pago.fecha_registro)
         ];
@@ -651,6 +652,7 @@ function exportToExcel() {
         montoPeso,
         montoDolar,
         `"${pago.observacion || ''}"`,
+        pago.op || '',
         `"${pago.usuario_registro}"`,
         formatDateTimeForExcel(pago.fecha_registro)
       ];
@@ -669,6 +671,7 @@ function exportToExcel() {
         '0.00',
         '0.00',
         '',
+        pago.op || '',
         `"${pago.usuario_registro}"`,
         formatDateTimeForExcel(pago.fecha_registro)
       ];
@@ -697,10 +700,24 @@ function exportToExcel() {
 
 // Formatear fecha para Excel
 function formatDateForExcel(dateString) {
-  const date = new Date(dateString + 'T00:00:00');
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
+  if (!dateString) return '';
+
+  // Si ya es un objeto Date, usarlo directamente
+  let date;
+  if (dateString instanceof Date) {
+    date = dateString;
+  } else {
+    // PostgreSQL devuelve fechas en formato YYYY-MM-DD
+    // Asegurarse de usar UTC para evitar problemas de zona horaria
+    date = new Date(dateString + 'T00:00:00Z');
+  }
+
+  // Verificar si la fecha es válida
+  if (isNaN(date.getTime())) return '';
+
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const year = date.getUTCFullYear();
   return `${day}/${month}/${year}`;
 }
 
