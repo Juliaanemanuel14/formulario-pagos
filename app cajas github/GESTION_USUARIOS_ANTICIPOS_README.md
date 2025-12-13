@@ -176,6 +176,34 @@ Se creó una interfaz completa para que los **admin_anticipos** (nivel 6) puedan
 - En el próximo login, el usuario puede usar cualquier contraseña (mín. 4 caracteres)
 - Esa contraseña se guardará como la nueva
 
+## Generación de IDs de Usuario
+
+Todos los usuarios en el sistema utilizan **UUIDs** (Universally Unique Identifiers) como IDs, almacenados en formato `CHAR(36)`.
+
+### Estrategia Unificada
+
+- ✅ **Cajero, Encargado, Auditor, Jefe Auditor, Admin Anticipos**: Usan `create_user()` que genera UUID con `str(uuid.uuid4())`
+- ✅ **Anticipos**: El endpoint `/api/usuarios_anticipos/crear` genera UUID con `str(uuid.uuid4())`
+- ✅ **Consistencia**: Todos los nuevos usuarios tendrán IDs en formato UUID (ej: `3ba177c6-f11a-49ef-8c5e-...`)
+
+### Código de Generación
+
+```python
+import uuid
+
+# Al crear cualquier usuario
+user_id = str(uuid.uuid4())
+
+cur.execute("""
+    INSERT INTO users (id, username, password, role_id, ...)
+    VALUES (%s, %s, ...)
+""", (user_id, username, ...))
+```
+
+### Nota sobre IDs Antiguos
+
+Algunos usuarios existentes pueden tener IDs numéricos (37, 39, 40, etc.) de versiones anteriores del sistema. Estos siguen funcionando correctamente, pero todos los nuevos usuarios utilizarán UUIDs para garantizar unicidad global y evitar conflictos de auto-incremento.
+
 ## Flujo de Uso
 
 ### 1. Crear un nuevo usuario de anticipos
