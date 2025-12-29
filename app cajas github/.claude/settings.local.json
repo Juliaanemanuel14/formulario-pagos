@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(Get-Content \"C:\\Users\\mateo\\GESTION COMPARTIDA Dropbox\\Departamento Gestion\\0001 - Control de Gestion (1)\\Desarrollo\\app cajas github\\app_de_cajas\\logs\\server_20251127.log\" -Tail 200)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+      "Bash(python:*)",
+      "Bash(ls:*)",
+      "Bash(Select-String -Pattern \"download_all_media|files\\.download\" -Context 2,2)",
+      "Bash(mysql:*)",
+      "Bash(pip install:*)",
+      "Bash(pkill:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(gcloud builds triggers describe:*)",
+      "Bash(where.exe:*)",
+      "Bash(cmd /c \"\"\"C:\\Users\\mateo\\AppData\\Local\\Google\\Cloud SDK\\google-cloud-sdk\\bin\\gcloud.cmd\"\" auth login --no-launch-browser\")",
+      "Bash(cmd /c \"\"\"C:\\Users\\mateo\\AppData\\Local\\Google\\Cloud SDK\\google-cloud-sdk\\bin\\gcloud.cmd\"\" config list\")",
+      "Bash(git reset:*)",
+      "Bash(git fetch:*)",
+      "Bash(git remote:*)",
+      "Bash(git config:*)",
+      "Bash(Get-Content \"C:\\Users\\mateo\\GESTION COMPARTIDA Dropbox\\Departamento Gestion\\0001 - Control de Gestion (1)\\Desarrollo\\app cajas github\\app_de_cajas\\logs\\server_20251206.log\" -Tail 100)",
+      "Bash(curl:*)",
+      "Bash(Get-Content \"C:\\Users\\mateo\\GESTION COMPARTIDA Dropbox\\Departamento Gestion\\0001 - Control de Gestion (1)\\Desarrollo\\app cajas github\\app_de_cajas\\logs\\server_20251207.log\" -Tail 100)",
+      "Bash(Select-String -Pattern \"anticipos|Error obteniendo\")",
+      "Bash(powershell -Command \"Get-Process | Where-Object {$_ProcessName -match ''git|python|node''} | Select-Object ProcessName,Id,CPU | Format-Table\")",
+      "Bash(Remove-Item \"C:\\Users\\mateo\\GESTION COMPARTIDA Dropbox\\Departamento Gestion\\0001 - Control de Gestion (1)\\Desarrollo\\.git\\index.lock\" -Force)",
+      "Bash(git pull:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(Get-Content \"C:\\Users\\mateo\\GESTION COMPARTIDA Dropbox\\Departamento Gestion\\0001 - Control de Gestion (1)\\Desarrollo\\app cajas github\\app_de_cajas\\logs\\server_20251210.log\" -Tail 100)",
+      "Bash(Get-Content \"C:\\Users\\mateo\\GESTION COMPARTIDA Dropbox\\Departamento Gestion\\0001 - Control de Gestion (1)\\Desarrollo\\app cajas github\\app_de_cajas\\logs\\server_20251212.log\" -Tail 50)",
+      "Bash(Get-Content \"C:\\Users\\mateo\\GESTION COMPARTIDA Dropbox\\Departamento Gestion\\0001 - Control de Gestion (1)\\Desarrollo\\app cajas github\\app_de_cajas\\logs\\server_*.log\" -Tail 50)",
+      "Bash(Select-String -Pattern \"remesas-matriz|Error|Exception\" -Context 2)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
