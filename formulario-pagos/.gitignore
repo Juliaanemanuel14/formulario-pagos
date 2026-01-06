@@ -1,0 +1,25 @@
+# Variables de entorno
+.env
+
+# Base de datos
+backend/*.db
+backend/*.db-journal
+backend/sessions.db
+
+# Node modules
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
