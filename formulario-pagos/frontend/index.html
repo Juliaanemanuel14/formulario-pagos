@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Gastos</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header con información del usuario -->
+  <div class="user-header">
+    <div class="user-info">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="white"/>
+      </svg>
+      <span id="username">Cargando...</span>
+    </div>
+    <div class="header-actions">
+      <a href="/historial" class="btn-historial">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M3 3H17C18.1 3 19 3.9 19 5V17C19 18.1 18.1 19 17 19H3C1.9 19 1 18.1 1 17V5C1 3.9 1.9 3 3 3ZM3 7V17H17V7H3ZM4 9H7V11H4V9ZM8 9H16V11H8V9ZM4 12H7V14H4V12ZM8 12H16V14H8V12Z" fill="white"/>
+        </svg>
+        Ver Historial
+      </a>
+      <button onclick="logout()" class="btn-logout">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M13 3H15C15.5304 3 16.0391 3.21071 16.4142 3.58579C16.7893 3.96086 17 4.46957 17 5V15C17 15.5304 16.7893 16.0391 16.4142 16.4142C16.0391 16.7893 15.5304 17 15 17H13M8 13L12 9L8 5M12 9H3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="form-wrapper">
+      <h1>Registro de Gastos</h1>
+      <p class="subtitle">Complete el formulario para registrar un nuevo gasto</p>
+
+      <form id="pagoForm" novalidate>
+        <!-- Campos principales -->
+        <div class="main-fields">
+          <div class="form-group">
+            <label for="local">
+              Local <span class="required">*</span>
+            </label>
+            <div id="local-multiselect" class="multiselect">
+              <button type="button" id="local-button" class="multiselect-button">
+                <span id="local-selected-text">Seleccione uno o más locales</span>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M6 8L10 12L14 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div id="local-dropdown" class="multiselect-dropdown" style="display: none;">
+                <label class="multiselect-option">
+                  <input type="checkbox" name="local" value="La mala">
+                  <span>La mala</span>
+                </label>
+                <label class="multiselect-option">
+                  <input type="checkbox" name="local" value="Costa 7070">
+                  <span>Costa 7070</span>
+                </label>
+                <label class="multiselect-option">
+                  <input type="checkbox" name="local" value="Kona">
+                  <span>Kona</span>
+                </label>
+                <label class="multiselect-option">
+                  <input type="checkbox" name="local" value="Cruza Recoleta">
+                  <span>Cruza Recoleta</span>
+                </label>
+                <label class="multiselect-option">
+                  <input type="checkbox" name="local" value="Cruza Polo">
+                  <span>Cruza Polo</span>
+                </label>
+                <label class="multiselect-option">
+                  <input type="checkbox" name="local" value="Cochinchina">
+                  <span>Cochinchina</span>
+                </label>
+              </div>
+            </div>
+            <span class="error-message" id="error-local"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="proveedor">
+              Nombre Proveedor <span class="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="proveedor"
+              name="proveedor"
+              placeholder="Ingrese el nombre del proveedor"
+              required
+            >
+            <span class="error-message" id="error-proveedor"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="fechaPago">
+              Fecha Pago <span class="required">*</span>
+            </label>
+            <input
+              type="date"
+              id="fechaPago"
+              name="fechaPago"
+              required
+            >
+            <span class="error-message" id="error-fechaPago"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="fechaServicio">
+              Fecha Servicio <span class="required">*</span>
+            </label>
+            <input
+              type="date"
+              id="fechaServicio"
+              name="fechaServicio"
+              required
+            >
+            <span class="error-message" id="error-fechaServicio"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="moneda">
+              Moneda <span class="required">*</span>
+            </label>
+            <select
+              id="moneda"
+              name="moneda"
+              required
+            >
+              <option value="">Seleccione una moneda</option>
+              <option value="Peso">Peso</option>
+              <option value="Dolar">Dólar</option>
+            </select>
+            <span class="error-message" id="error-moneda"></span>
+          </div>
+        </div>
+
+        <!-- Campos del Gasto -->
+        <div class="main-fields">
+          <div class="form-group">
+            <label for="concepto">
+              Concepto <span class="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="concepto"
+              name="concepto"
+              placeholder="Descripción del gasto"
+              required
+            >
+            <span class="error-message" id="error-concepto"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="importe">
+              Importe <span class="required">*</span>
+            </label>
+            <input
+              type="number"
+              id="importe"
+              name="importe"
+              placeholder="0.00"
+              step="0.01"
+              min="0.01"
+              required
+            >
+            <span class="error-message" id="error-importe"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="observacion">
+              Observación
+            </label>
+            <textarea
+              id="observacion"
+              name="observacion"
+              placeholder="Observación (opcional)"
+              rows="3"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="archivos">
+              Archivos Adjuntos
+              <span class="label-info">(Opcional - Máx 5 archivos, 10MB c/u)</span>
+            </label>
+            <div class="file-upload-wrapper">
+              <input
+                type="file"
+                id="archivos"
+                name="archivos"
+                accept="image/*,.pdf"
+                multiple
+                class="file-input"
+              >
+              <label for="archivos" class="file-upload-label">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15M17 8L12 3M12 3L7 8M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="file-upload-text">Seleccionar archivos (imágenes o PDF)</span>
+              </label>
+              <div id="archivos-preview" class="archivos-preview"></div>
+            </div>
+            <span class="form-help">Formatos permitidos: JPG, PNG, GIF, WEBP, PDF</span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit" id="submitBtn">
+          <span class="btn-text">Continuar</span>
+          <span class="btn-loader" style="display: none;"></span>
+        </button>
+      </form>
+
+      <!-- Pantalla de Confirmación/Resumen -->
+      <div id="confirmationPanel" class="confirmation-panel" style="display: none;">
+        <h2>Confirmar Registro de Gasto</h2>
+        <p class="confirmation-subtitle">Por favor, verifique los datos antes de enviar</p>
+
+        <div class="summary-card">
+          <h3>Datos Generales</h3>
+          <table class="summary-table">
+            <tr>
+              <td class="summary-label">Local(es):</td>
+              <td class="summary-value" id="confirm-local"></td>
+            </tr>
+            <tr>
+              <td class="summary-label">Proveedor:</td>
+              <td class="summary-value" id="confirm-proveedor"></td>
+            </tr>
+            <tr>
+              <td class="summary-label">Fecha Pago:</td>
+              <td class="summary-value" id="confirm-fechaPago"></td>
+            </tr>
+            <tr>
+              <td class="summary-label">Fecha Servicio:</td>
+              <td class="summary-value" id="confirm-fechaServicio"></td>
+            </tr>
+            <tr>
+              <td class="summary-label">Moneda:</td>
+              <td class="summary-value" id="confirm-moneda"></td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="summary-card">
+          <h3>Detalles del Gasto</h3>
+          <table class="summary-table">
+            <tr>
+              <td class="summary-label">Concepto:</td>
+              <td class="summary-value" id="confirm-concepto"></td>
+            </tr>
+            <tr>
+              <td class="summary-label">Importe:</td>
+              <td class="summary-value" id="confirm-importe"></td>
+            </tr>
+            <tr>
+              <td class="summary-label">Observación:</td>
+              <td class="summary-value" id="confirm-observacion"></td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="summary-card" id="confirm-archivos-card" style="display: none;">
+          <h3>📎 Archivos Adjuntos</h3>
+          <div id="confirm-archivos-list" class="archivos-confirm-list"></div>
+        </div>
+
+        <div class="email-preview">
+          <h3>📧 Notificación por Email</h3>
+          <p class="email-info">
+            Se enviará un email a: <strong id="email-destinatario"></strong>
+          </p>
+          <p class="email-info">
+            Registrado por: <strong id="email-usuario"></strong>
+          </p>
+        </div>
+
+        <div class="confirmation-actions">
+          <button onclick="cancelConfirmation()" class="btn-cancel">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 8L8 12M8 8L12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Cancelar
+          </button>
+          <button onclick="confirmAndSend()" class="btn-confirm" id="confirmBtn">
+            <span class="btn-text">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M16 6L8.5 13.5L4 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Confirmar y Enviar
+            </span>
+            <span class="btn-loader" style="display: none;"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mensaje de confirmación -->
+      <div id="successMessage" class="success-message" style="display: none;">
+        <div class="success-icon">✓</div>
+        <h3>¡Gasto registrado exitosamente!</h3>
+        <p id="successText"></p>
+        <button onclick="resetForm()" class="btn-new">Registrar otro gasto</button>
+      </div>
+
+      <!-- Mensaje de error -->
+      <div id="errorMessage" class="error-alert" style="display: none;">
+        <div class="error-icon">✕</div>
+        <h3>Error al registrar el gasto</h3>
+        <p id="errorText"></p>
+        <button onclick="hideError()" class="btn-retry">Intentar nuevamente</button>
+      </div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

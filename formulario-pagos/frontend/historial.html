@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Historial de Gastos</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="historial-styles.css">
+</head>
+<body>
+  <!-- Header con información del usuario -->
+  <div class="user-header">
+    <div class="user-info">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="white"/>
+      </svg>
+      <span id="username">Cargando...</span>
+    </div>
+    <div class="header-actions">
+      <a href="/" class="btn-historial">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 3V7M10 7H14M10 7L14 3M6 3H4C3.46957 3 2.96086 3.21071 2.58579 3.58579C2.21071 3.96086 2 4.46957 2 5V16C2 16.5304 2.21071 17.0391 2.58579 17.4142C2.96086 17.7893 3.46957 18 4 18H16C16.5304 18 17.0391 17.7893 17.4142 17.4142C17.7893 17.0391 18 16.5304 18 16V5C18 4.46957 17.7893 3.96086 17.4142 3.58579C17.0391 3.21071 16.5304 3 16 3H14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Nuevo Gasto
+      </a>
+      <button onclick="logout()" class="btn-logout">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M13 3H15C15.5304 3 16.0391 3.21071 16.4142 3.58579C16.7893 3.96086 17 4.46957 17 5V15C17 15.5304 16.7893 16.0391 16.4142 16.4142C16.0391 16.7893 15.5304 17 15 17H13M8 13L12 9L8 5M12 9H3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+
+  <div class="historial-container">
+    <div class="historial-header">
+      <h1>📋 Historial de Gastos</h1>
+      <p class="subtitle">Visualiza y filtra todos los gastos registrados</p>
+    </div>
+
+    <div class="filters-section">
+      <div class="search-box">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M19 19L13 13M15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1C11.866 1 15 4.13401 15 8Z" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Buscar..."
+        >
+      </div>
+
+      <div class="filter-group">
+        <label for="filterFechaPagoDesde">Fecha Pago Desde:</label>
+        <input type="date" id="filterFechaPagoDesde">
+      </div>
+
+      <div class="filter-group">
+        <label for="filterFechaPagoHasta">Fecha Pago Hasta:</label>
+        <input type="date" id="filterFechaPagoHasta">
+      </div>
+
+      <div class="filter-group">
+        <label for="filterFechaServicioDesde">Fecha Servicio Desde:</label>
+        <input type="date" id="filterFechaServicioDesde">
+      </div>
+
+      <div class="filter-group">
+        <label for="filterFechaServicioHasta">Fecha Servicio Hasta:</label>
+        <input type="date" id="filterFechaServicioHasta">
+      </div>
+
+      <div class="filter-group">
+        <label for="filterLocal">Local:</label>
+        <select id="filterLocal">
+          <option value="">Todos</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="filterUsuario">Usuario:</label>
+        <select id="filterUsuario">
+          <option value="">Todos</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="filterConcepto">Concepto:</label>
+        <select id="filterConcepto">
+          <option value="">Todos</option>
+        </select>
+      </div>
+
+      <button onclick="exportToExcel()" class="btn-export-excel">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M6 2H14C15.1046 2 16 2.89543 16 4V16C16 17.1046 15.1046 18 14 18H6C4.89543 18 4 17.1046 4 16V4C4 2.89543 4.89543 2 6 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 6H12M8 10H12M8 14H10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Exportar a Excel
+      </button>
+
+      <button onclick="clearFilters()" class="btn-clear-filters">
+        Limpiar Filtros
+      </button>
+    </div>
+
+    <div class="stats-cards">
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-content">
+          <div class="stat-label">Total Registros</div>
+          <div class="stat-value" id="totalRegistros">0</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-content">
+          <div class="stat-label">Importe Total</div>
+          <div class="stat-value" id="importeTotal">$0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <div id="loadingSpinner" class="loading-spinner" style="display: block;">
+        <div class="spinner"></div>
+        <p>Cargando datos...</p>
+      </div>
+
+      <div id="noDataMessage" class="no-data" style="display: none;">
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+          <path d="M40 73.3333C58.4095 73.3333 73.3333 58.4095 73.3333 40C73.3333 21.5905 58.4095 6.66667 40 6.66667C21.5905 6.66667 6.66667 21.5905 6.66667 40C6.66667 58.4095 21.5905 73.3333 40 73.3333Z" stroke="#e5e7eb" stroke-width="4"/>
+          <path d="M26.6667 40H53.3333M40 26.6667V53.3333" stroke="#e5e7eb" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+        <h3>No hay datos disponibles</h3>
+        <p>Aún no se han registrado gastos</p>
+        <a href="/" class="btn-primary">Registrar Primer Gasto</a>
+      </div>
+
+      <table id="pagosTable" class="pagos-table" style="display: none;">
+        <thead>
+          <tr>
+            <th style="width: 50px;"></th>
+            <th>ID</th>
+            <th>FECHA PAGO</th>
+            <th>FECHA SERVICIO</th>
+            <th>LOCAL</th>
+            <th>MONEDA</th>
+            <th>ITEMS</th>
+            <th>TOTAL</th>
+            <th>OP</th>
+            <th>USUARIO</th>
+          </tr>
+        </thead>
+        <tbody id="pagosTableBody">
+          <!-- Los datos se cargan dinámicamente -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="historial.js"></script>
+</body>
+</html>
