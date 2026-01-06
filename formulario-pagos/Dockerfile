@@ -5,14 +5,14 @@ FROM node:18-slim
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package*.json ./
+COPY formulario-pagos/package*.json ./
 
 # Instalar dependencias de producción (incluyendo resend)
 RUN npm ci --only=production && npm cache clean --force
 
 # Copiar el código de la aplicación
-COPY backend ./backend
-COPY frontend ./frontend
+COPY formulario-pagos/backend ./backend
+COPY formulario-pagos/frontend ./frontend
 
 # Crear usuario no-root para mayor seguridad
 RUN useradd -m -u 1001 appuser && \
