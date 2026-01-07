@@ -58,6 +58,12 @@ if (isProduction) {
   console.log('✓ Conectando a PostgreSQL en desarrollo');
 }
 
+// Manejar errores del pool para evitar crashes
+pool.on('error', (err) => {
+  console.error('Error inesperado en el pool de PostgreSQL:', err);
+  // No lanzar el error, solo loguearlo para evitar que crashee la app
+});
+
 // Función para ejecutar queries
 async function query(text, params) {
   const start = Date.now();
