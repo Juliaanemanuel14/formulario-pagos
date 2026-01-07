@@ -5,7 +5,7 @@ FROM node:18-slim
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY formulario-pagos/package*.json ./
+COPY formulario-pagos/package.json formulario-pagos/package-lock.json ./
 
 # Instalar dependencias de producción (incluyendo resend)
 RUN npm ci --only=production && npm cache clean --force
