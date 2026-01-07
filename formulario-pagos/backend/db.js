@@ -6,20 +6,47 @@ const isProduction = process.env.NODE_ENV === 'production';
 let pool;
 
 if (isProduction) {
-  // Configuración para PostgreSQL en Cloud SQL
-  pool = new Pool({
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST || '/cloudsql/' + process.env.INSTANCE_CONNECTION_NAME,
-    port: process.env.DB_PORT || 5432,
-    max: 5,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-  });
+  // Si existe DATABASE_URL (Railway, Heroku, etc), usarla directamente
+  if (process.env.DATABASE_URL) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DB_SSL === 'false' ? false : {
+        rejectUnauthorized: false
+      },
+      max: 5,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    });
+    console.log('✓ Conectando a PostgreSQL usando DATABASE_URL');
+  } else if (process.env.PGHOST) {
+    // Railway con variables individuales (PGHOST, PGUSER, PGPASSWORD, etc)
+    pool = new Pool({
+      user: process.env.PGUSER,
+      password: process.env.PGPASSWORD,
+      database: process.env.PGDATABASE,
+      host: process.env.PGHOST,
+      port: process.env.PGPORT || 5432,
+      max: 5,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    });
+    console.log('✓ Conectando a PostgreSQL usando variables PG*');
+  } else {
+    // Configuración para PostgreSQL en Cloud SQL con variables individuales
+    pool = new Pool({
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      host: process.env.DB_HOST || '/cloudsql/' + process.env.INSTANCE_CONNECTION_NAME,
+      port: process.env.DB_PORT || 5432,
+      max: 5,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    });
+    console.log('✓ Conectando a PostgreSQL usando variables DB_*');
+  }
 } else {
-  // Configuración para desarrollo local (puedes usar PostgreSQL local o SQLite)
-  // Para desarrollo, usaremos variables de entorno o valores por defecto
+  // Configuración para desarrollo local
   pool = new Pool({
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
@@ -28,6 +55,7 @@ if (isProduction) {
     port: process.env.DB_PORT || 5432,
     max: 5,
   });
+  console.log('✓ Conectando a PostgreSQL en desarrollo');
 }
 
 // Función para ejecutar queries
