@@ -23,7 +23,9 @@ let currentUser = null;
 // Verificar autenticación al cargar
 window.addEventListener('load', async () => {
   try {
-    const response = await fetch('/api/check-auth');
+    const response = await fetch('/api/check-auth', {
+      credentials: 'include'
+    });
     const data = await response.json();
 
     if (!data.authenticated) {
@@ -46,7 +48,8 @@ window.addEventListener('load', async () => {
 async function logout() {
   try {
     const response = await fetch('/api/logout', {
-      method: 'POST'
+      method: 'POST',
+      credentials: 'include'
     });
 
     const data = await response.json();
@@ -67,7 +70,9 @@ async function loadPagos() {
     noDataMessage.style.display = 'none';
     pagosTable.style.display = 'none';
 
-    const response = await fetch('/api/pagos');
+    const response = await fetch('/api/pagos', {
+      credentials: 'include'
+    });
 
     if (response.status === 401) {
       window.location.href = '/login';
@@ -684,6 +689,7 @@ async function saveOP(pagoId) {
   try {
     const response = await fetch(`/api/pagos/${pagoId}/op`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },

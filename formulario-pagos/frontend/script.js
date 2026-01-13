@@ -20,7 +20,9 @@ let selectedLocales = [];
 // Verificar autenticación al cargar
 window.addEventListener('load', async () => {
   try {
-    const response = await fetch('/api/check-auth');
+    const response = await fetch('/api/check-auth', {
+      credentials: 'include'
+    });
     const data = await response.json();
 
     if (!data.authenticated) {
@@ -193,7 +195,10 @@ function removeFile(index) {
 // Función de logout
 async function logout() {
   try {
-    const response = await fetch('/api/logout', { method: 'POST' });
+    const response = await fetch('/api/logout', {
+      method: 'POST',
+      credentials: 'include'
+    });
     const data = await response.json();
     if (data.success) {
       window.location.href = '/login';
@@ -437,6 +442,7 @@ async function confirmAndSend() {
 
     const response = await fetch('/api/pagos', {
       method: 'POST',
+      credentials: 'include',
       body: formData
     });
 
